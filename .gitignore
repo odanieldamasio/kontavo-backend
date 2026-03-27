@@ -14,7 +14,7 @@ logs/
 *.swp
 *.swo
 .pnpm-debug.log*
-.pnpm-store/v10
+.pnpm-store
 .yarn-integrity
 .npm
 .eslintcache

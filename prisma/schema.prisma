@@ -7,13 +7,23 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-/// This baseline model keeps the Prisma pipeline working while leaving room
-/// for future tenant-aware fields or schema-isolation strategies.
+enum PlanType {
+  FREE
+  ESSENTIAL
+  PREMIUM
+}
+
+/// User is intentionally shaped to become the parent side of future
+/// transaction relationships without introducing a placeholder model yet.
 model User {
   id        String   @id @default(cuid())
   email     String   @unique
-  firstName String?
-  lastName  String?
+  name      String
+  phone     String?  @unique
+  password  String
+  planType  PlanType @default(FREE)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@map("users")
 }
