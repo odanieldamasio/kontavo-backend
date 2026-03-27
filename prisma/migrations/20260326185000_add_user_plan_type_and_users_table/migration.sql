@@ -21,5 +21,10 @@ ALTER TABLE "users"
     ADD COLUMN "password" TEXT NOT NULL DEFAULT '',
     ADD COLUMN "planType" "PlanType" NOT NULL DEFAULT 'FREE';
 
+-- AlterTable
+ALTER TABLE "users"
+    ALTER COLUMN "name" SET NOT NULL,
+    ALTER COLUMN "password" DROP DEFAULT;
+
 -- CreateIndex
 CREATE UNIQUE INDEX "users_phone_key" ON "users"("phone");
