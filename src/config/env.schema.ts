@@ -9,6 +9,7 @@ export const envSchema = Joi.object({
   REDIS_HOST: Joi.string().hostname().required(),
   REDIS_PORT: Joi.number().port().required(),
   REDIS_PASSWORD: Joi.string().allow('').optional(),
-  JWT_SECRET: Joi.string().min(8).optional(),
-  JWT_EXPIRES_IN: Joi.string().optional()
+  JWT_SECRET: Joi.string().min(8).required(),
+  JWT_ACCESS_EXPIRES_IN: Joi.string().default('15m'),
+  JWT_REFRESH_EXPIRES_IN: Joi.string().default('7d')
 });

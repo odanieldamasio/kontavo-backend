@@ -24,12 +24,38 @@ export class RedisService implements OnModuleDestroy {
     return this.client;
   }
 
-  async ping(): Promise<string> {
+  private async ensureConnection(): Promise<void> {
     if (this.client.status === 'wait') {
       await this.client.connect();
     }
+  }
+
+  async ping(): Promise<string> {
+    await this.ensureConnection();
 
     return this.client.ping();
+  }
+
+  async get(key: string): Promise<string | null> {
+    await this.ensureConnection();
+
+    return this.client.get(key);
+  }
+
+  async set(key: string, value: string, ttlInSeconds?: number): Promise<void> {
+    await this.ensureConnection();
+
+    if (ttlInSeconds) {
+      await this.client.set(key, value, 'EX', ttlInSeconds);
+      return;
+    }
+
+    await this.client.set(key, value);
+  }
+
+  async del(key: string): Promise<void> {
+    await this.ensureConnection();
+    await this.client.del(key);
   }
 
   async onModuleDestroy(): Promise<void> {

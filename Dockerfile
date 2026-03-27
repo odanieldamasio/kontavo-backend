@@ -8,4 +8,4 @@ COPY package.json ./
 
 EXPOSE 3000
 
-CMD ["sh", "-c", "pnpm install --no-frozen-lockfile && pnpm prisma generate && pnpm start:dev"]
+CMD ["sh", "-c", "pnpm install --no-frozen-lockfile && pnpm prisma generate && pnpm prisma migrate deploy && pnpm start:dev"]

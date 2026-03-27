@@ -1,2 +1,1 @@
-// Reserved for future authentication and authorization guards.
-export {};
+export * from './jwt-auth.guard';
