@@ -10,10 +10,12 @@
     "start": "node dist/main",
     "start:dev": "nest start --watch",
     "start:prod": "node dist/main",
+    "health:check": "curl -f http://localhost:3000/health",
     "prisma:generate": "prisma generate",
     "prisma:deploy": "prisma migrate deploy",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
+    "stripe:listen": "stripe listen --forward-to localhost:3000/billing/webhook",
     "docker:up": "docker compose up --build",
     "docker:down": "docker compose down"
   },
