@@ -11,5 +11,12 @@ export const envSchema = Joi.object({
   REDIS_PASSWORD: Joi.string().allow('').optional(),
   JWT_SECRET: Joi.string().min(8).required(),
   JWT_ACCESS_EXPIRES_IN: Joi.string().default('15m'),
-  JWT_REFRESH_EXPIRES_IN: Joi.string().default('7d')
+  JWT_REFRESH_EXPIRES_IN: Joi.string().default('7d'),
+  STRIPE_SECRET_KEY: Joi.string().required(),
+  STRIPE_WEBHOOK_SECRET: Joi.string().required(),
+  STRIPE_PRICE_ESSENTIAL: Joi.string().required(),
+  STRIPE_PRICE_PREMIUM: Joi.string().required(),
+  STRIPE_SUCCESS_URL: Joi.string().uri().required(),
+  STRIPE_CANCEL_URL: Joi.string().uri().required(),
+  STRIPE_PORTAL_RETURN_URL: Joi.string().uri().required()
 });

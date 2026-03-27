@@ -34,6 +34,7 @@
     "passport-local": "^1.0.0",
     "reflect-metadata": "^0.2.0",
     "rxjs": "^7.0.0",
+    "stripe": "^18.5.0",
     "swagger-ui-express": "^5.0.1"
   },
   "devDependencies": {

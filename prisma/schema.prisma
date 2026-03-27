@@ -33,9 +33,28 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   categories Category[]
+  subscription Subscription?
   transactions Transaction[]
 
   @@map("users")
+}
+
+model Subscription {
+  id                   String    @id @default(cuid())
+  userId               String    @unique
+  stripeCustomerId     String    @unique
+  stripeSubscriptionId String?   @unique
+  stripePriceId        String?
+  planType             PlanType  @default(FREE)
+  status               String
+  currentPeriodEnd     DateTime?
+  cancelAtPeriodEnd    Boolean   @default(false)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([stripeSubscriptionId])
+  @@map("subscriptions")
 }
 
 model Category {

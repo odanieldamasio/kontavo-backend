@@ -7,7 +7,9 @@ import { AppModule } from './app.module';
 import { PrismaService } from './database/prisma.service';
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    rawBody: true
+  });
   const configService = app.get(ConfigService);
   const prismaService = app.get(PrismaService);
   const port = Number(configService.get<string>('PORT', '3000'));

@@ -45,6 +45,13 @@ export class UsersService {
     });
   }
 
+  updatePlanType(id: string, planType: PlanType): Promise<User> {
+    return this.prismaService.user.update({
+      where: { id },
+      data: { planType }
+    });
+  }
+
   toSafeUser(user: User): SafeUser {
     const { password: _password, ...safeUser } = user;
     return safeUser;
