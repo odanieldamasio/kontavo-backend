@@ -19,6 +19,7 @@ import { ListTransactionsQueryDto } from './dto/list-transactions-query.dto';
 import { PaginatedTransactionsResponseDto } from './dto/paginated-transactions-response.dto';
 import { TransactionResponseDto } from './dto/transaction-response.dto';
 import { UpdateTransactionDto } from './dto/update-transaction.dto';
+import { TransactionsWhatsappNotifierService } from './transactions-whatsapp-notifier.service';
 
 @Injectable()
 export class TransactionsService {
@@ -27,7 +28,8 @@ export class TransactionsService {
   constructor(
     private readonly prismaService: PrismaService,
     private readonly usersService: UsersService,
-    private readonly categoriesService: CategoriesService
+    private readonly categoriesService: CategoriesService,
+    private readonly transactionsWhatsappNotifierService: TransactionsWhatsappNotifierService
   ) {}
 
   async create(
@@ -53,7 +55,16 @@ export class TransactionsService {
       }
     });
 
-    return this.toResponse(transaction);
+    const response = this.toResponse(transaction);
+
+    if (response.source === TransactionSource.MANUAL) {
+      await this.transactionsWhatsappNotifierService.notifyCreatedTransaction(
+        user,
+        response
+      );
+    }
+
+    return response;
   }
 
   async findAll(
