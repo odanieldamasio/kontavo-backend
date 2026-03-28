@@ -33,6 +33,24 @@ export class UsersService {
     });
   }
 
+  async findByNormalizedPhone(phone: string): Promise<User | null> {
+    const normalizedPhone = this.normalizePhone(phone);
+
+    if (!normalizedPhone) {
+      return null;
+    }
+
+    const users = await this.prismaService.user.findMany({
+      where: {
+        phone: {
+          not: null
+        }
+      }
+    });
+
+    return users.find((user) => this.normalizePhone(user.phone) === normalizedPhone) ?? null;
+  }
+
   create(data: CreateUserInput): Promise<User> {
     return this.prismaService.user.create({
       data: {
@@ -55,5 +73,9 @@ export class UsersService {
   toSafeUser(user: User): SafeUser {
     const { password: _password, ...safeUser } = user;
     return safeUser;
+  }
+
+  private normalizePhone(phone: string | null | undefined): string {
+    return (phone ?? '').replace(/\D/g, '');
   }
 }

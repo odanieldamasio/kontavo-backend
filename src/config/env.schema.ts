@@ -18,5 +18,9 @@ export const envSchema = Joi.object({
   STRIPE_PRICE_PREMIUM: Joi.string().required(),
   STRIPE_SUCCESS_URL: Joi.string().uri().required(),
   STRIPE_CANCEL_URL: Joi.string().uri().required(),
-  STRIPE_PORTAL_RETURN_URL: Joi.string().uri().required()
+  STRIPE_PORTAL_RETURN_URL: Joi.string().uri().required(),
+  EVOLUTION_API_URL: Joi.string().uri().required(),
+  EVOLUTION_API_KEY: Joi.string().required(),
+  EVOLUTION_INSTANCE_NAME: Joi.string().required(),
+  WHATSAPP_WEBHOOK_TOKEN: Joi.string().allow('').optional()
 });

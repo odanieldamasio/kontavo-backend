@@ -17,6 +17,24 @@ services:
       timeout: 5s
       retries: 5
 
+  evolution-postgres:
+    image: postgres:17-alpine
+    container_name: kontavo-evolution-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: evolution
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5434:5432"
+    volumes:
+      - evolution_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d evolution"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   redis:
     image: redis:7-alpine
     container_name: kontavo-redis
@@ -49,6 +67,7 @@ services:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/kontavo
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      EVOLUTION_API_URL: http://evolution:8080
     ports:
       - "3000:3000"
     volumes:
@@ -68,7 +87,42 @@ services:
       retries: 5
       start_period: 20s
 
+  evolution:
+    image: evoapicloud/evolution-api:v2.3.7
+    container_name: kontavo-evolution
+    restart: unless-stopped
+    depends_on:
+      evolution-postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      SERVER_URL: http://localhost:8080
+      AUTHENTICATION_API_KEY: ${EVOLUTION_API_KEY:-change-me}
+      DATABASE_ENABLED: "true"
+      DATABASE_PROVIDER: postgresql
+      DATABASE_CONNECTION_URI: postgresql://postgres:postgres@evolution-postgres:5432/evolution
+      DATABASE_CONNECTION_CLIENT_NAME: kontavo_evolution
+      DATABASE_SAVE_DATA_INSTANCE: "true"
+      DATABASE_SAVE_DATA_NEW_MESSAGE: "true"
+      DATABASE_SAVE_MESSAGE_UPDATE: "true"
+      DATABASE_SAVE_DATA_CONTACTS: "true"
+      DATABASE_SAVE_DATA_CHATS: "true"
+      DATABASE_SAVE_DATA_LABELS: "true"
+      DATABASE_SAVE_DATA_HISTORIC: "true"
+      CACHE_REDIS_ENABLED: "true"
+      CACHE_REDIS_URI: redis://redis:6379/6
+      CACHE_REDIS_PREFIX_KEY: kontavo_evolution
+      CACHE_REDIS_SAVE_INSTANCES: "false"
+      CACHE_LOCAL_ENABLED: "false"
+    ports:
+      - "8080:8080"
+    volumes:
+      - evolution_instances:/evolution/instances
+
 volumes:
   postgres_data:
+  evolution_postgres_data:
   redis_data:
   backend_node_modules:
+  evolution_instances:

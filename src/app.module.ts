@@ -11,6 +11,7 @@ import { HealthModule } from './health/health.module';
 import { RedisModule } from './redis/redis.module';
 import { TransactionsModule } from './transactions/transactions.module';
 import { UsersModule } from './users/users.module';
+import { WhatsappModule } from './whatsapp/whatsapp.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { UsersModule } from './users/users.module';
     RedisModule,
     TransactionsModule,
     UsersModule,
+    WhatsappModule,
     HealthModule
   ],
   providers: [

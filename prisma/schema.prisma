@@ -23,16 +23,22 @@ enum TransactionSource {
   WHATSAPP
 }
 
+enum WhatsappMessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String
-  phone     String?  @unique
-  password  String
-  planType  PlanType @default(FREE)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  categories Category[]
+  id           String            @id @default(cuid())
+  email        String            @unique
+  name         String
+  phone        String?           @unique
+  password     String
+  planType     PlanType          @default(FREE)
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  categories   Category[]
+  messages     WhatsappMessage[]
   subscription Subscription?
   transactions Transaction[]
 
@@ -73,20 +79,41 @@ model Category {
 }
 
 model Transaction {
-  id          String            @id @default(cuid())
-  type        TransactionType
-  amount      Decimal           @db.Decimal(14, 2)
-  description String
-  date        DateTime
-  userId      String
-  categoryId  String
-  source      TransactionSource @default(MANUAL)
-  receiptUrl  String?
-  deletedAt   DateTime?
-  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  category    Category          @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  id               String            @id @default(cuid())
+  type             TransactionType
+  amount           Decimal           @db.Decimal(14, 2)
+  description      String
+  date             DateTime
+  userId           String
+  categoryId       String
+  source           TransactionSource @default(MANUAL)
+  receiptUrl       String?
+  deletedAt        DateTime?
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category         Category          @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  whatsappMessages WhatsappMessage[]
 
   @@index([userId])
   @@index([categoryId])
   @@map("transactions")
+}
+
+model WhatsappMessage {
+  id            String                   @id @default(cuid())
+  userId        String?
+  transactionId String?
+  messageId     String
+  remoteJid     String
+  direction     WhatsappMessageDirection
+  text          String
+  parsed        Boolean                  @default(false)
+  rawPayload    Json
+  createdAt     DateTime                 @default(now())
+  user          User?                    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  transaction   Transaction?             @relation(fields: [transactionId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([messageId])
+  @@index([remoteJid])
+  @@map("whatsapp_messages")
 }
