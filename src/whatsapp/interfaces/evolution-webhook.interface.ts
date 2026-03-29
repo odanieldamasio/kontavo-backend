@@ -1,6 +1,7 @@
 interface EvolutionMessageKey {
   id?: string;
   remoteJid?: string;
+  remoteJidAlt?: string;
   fromMe?: boolean;
 }
 
@@ -11,6 +12,12 @@ interface EvolutionMessageContent {
   };
   imageMessage?: {
     caption?: string;
+    url?: string;
+    mimetype?: string;
+    mediaUrl?: string;
+    mediaKey?: string;
+    directPath?: string;
+    base64?: string;
   };
   videoMessage?: {
     caption?: string;
@@ -31,6 +38,7 @@ export interface EvolutionWebhookPayload {
     | {
         id?: string;
         remoteJid?: string;
+        remoteJidAlt?: string;
       };
   key?: EvolutionMessageKey;
   message?: EvolutionMessageContent;
@@ -40,6 +48,7 @@ export interface EvolutionWebhookPayload {
       | {
           id?: string;
           remoteJid?: string;
+          remoteJidAlt?: string;
         };
     messages?: EvolutionWebhookMessageData[];
   };

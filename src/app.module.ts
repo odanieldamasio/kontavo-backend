@@ -6,6 +6,7 @@ import { CategoriesModule } from './categories/categories.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { ConfigModule } from '@nestjs/config';
 import { envSchema } from './config/env.schema';
+import { PlanModule } from './common/plan/plan.module';
 import { DatabaseModule } from './database/database.module';
 import { HealthModule } from './health/health.module';
 import { RedisModule } from './redis/redis.module';
@@ -21,6 +22,7 @@ import { WhatsappModule } from './whatsapp/whatsapp.module';
       validationSchema: envSchema
     }),
     DatabaseModule,
+    PlanModule,
     AuthModule,
     BillingModule,
     CategoriesModule,

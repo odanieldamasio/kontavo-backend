@@ -1,16 +1,15 @@
 import {
   BadRequestException,
-  ForbiddenException,
   Injectable,
   NotFoundException
 } from '@nestjs/common';
 import {
-  PlanType,
   Prisma,
   Transaction,
   TransactionSource,
   User
 } from '@prisma/client';
+import { PlanService } from '../common/plan/plan.service';
 import { CategoriesService } from '../categories/categories.service';
 import { PrismaService } from '../database/prisma.service';
 import { UsersService } from '../users/users.service';
@@ -23,10 +22,9 @@ import { TransactionsWhatsappNotifierService } from './transactions-whatsapp-not
 
 @Injectable()
 export class TransactionsService {
-  private static readonly FREE_MONTHLY_LIMIT = 15;
-
   constructor(
     private readonly prismaService: PrismaService,
+    private readonly planService: PlanService,
     private readonly usersService: UsersService,
     private readonly categoriesService: CategoriesService,
     private readonly transactionsWhatsappNotifierService: TransactionsWhatsappNotifierService
@@ -71,6 +69,7 @@ export class TransactionsService {
     userId: string,
     query: ListTransactionsQueryDto
   ): Promise<PaginatedTransactionsResponseDto> {
+    const historyStartDate = await this.planService.getHistoryStartDateForUser(userId);
     const page = this.parsePositiveInt(query.page, 1);
     const limit = this.parsePositiveInt(query.limit, 10);
     const where: Prisma.TransactionWhereInput = {
@@ -86,15 +85,22 @@ export class TransactionsService {
       where.categoryId = query.categoryId;
     }
 
-    if (query.startDate || query.endDate) {
+    if (query.startDate || query.endDate || historyStartDate) {
+      const startDate = query.startDate ? this.parseDate(query.startDate) : undefined;
+      const endDate = query.endDate ? this.parseDate(query.endDate) : undefined;
+      const effectiveStartDate =
+        historyStartDate && (!startDate || startDate < historyStartDate)
+          ? historyStartDate
+          : startDate;
+
       where.date = {};
 
-      if (query.startDate) {
-        where.date.gte = this.parseDate(query.startDate);
+      if (effectiveStartDate) {
+        where.date.gte = effectiveStartDate;
       }
 
-      if (query.endDate) {
-        where.date.lte = this.parseDate(query.endDate);
+      if (endDate) {
+        where.date.lte = endDate;
       }
     }
 
@@ -197,17 +203,13 @@ export class TransactionsService {
     date: Date,
     excludeTransactionId?: string
   ): Promise<void> {
-    if (user.planType !== PlanType.FREE) {
-      return;
-    }
-
-    const { start, end } = this.getMonthRange(date);
+    const monthRange = this.planService.getMonthRange(date);
     const where: Prisma.TransactionWhereInput = {
       userId: user.id,
       deletedAt: null,
       date: {
-        gte: start,
-        lte: end
+        gte: monthRange.start,
+        lte: monthRange.end
       }
     };
 
@@ -218,26 +220,13 @@ export class TransactionsService {
     }
 
     const currentCount = await this.prismaService.transaction.count({ where });
-    const projectedCount = currentCount + 1;
-
-    if (projectedCount > TransactionsService.FREE_MONTHLY_LIMIT) {
-      throw new ForbiddenException({
-        code: 'LIMIT_REACHED',
-        message: 'Limite atingido'
-      });
-    }
-  }
-
-  private getMonthRange(date: Date): { start: Date; end: Date } {
-    const start = new Date(date);
-    start.setUTCDate(1);
-    start.setUTCHours(0, 0, 0, 0);
-
-    const end = new Date(start);
-    end.setUTCMonth(end.getUTCMonth() + 1);
-    end.setUTCMilliseconds(end.getUTCMilliseconds() - 1);
-
-    return { start, end };
+    this.planService.ensureWithinLimit({
+      planType: user.planType,
+      limitType: 'transactions',
+      currentCount,
+      increment: 1,
+      message: 'Limite de transacoes do plano atual atingido.'
+    });
   }
 
   private parseDate(value: string): Date {

@@ -22,5 +22,9 @@ export const envSchema = Joi.object({
   EVOLUTION_API_URL: Joi.string().uri().required(),
   EVOLUTION_API_KEY: Joi.string().required(),
   EVOLUTION_INSTANCE_NAME: Joi.string().required(),
-  WHATSAPP_WEBHOOK_TOKEN: Joi.string().allow('').optional()
+  EVOLUTION_WEBHOOK_URL: Joi.string().uri().required(),
+  WHATSAPP_WEBHOOK_TOKEN: Joi.string().allow('').optional(),
+  OPENAI_API_KEY: Joi.string().allow('').optional(),
+  OPENAI_MODEL: Joi.string().default('gpt-4o'),
+  WHATSAPP_IMAGE_CACHE_TTL_SECONDS: Joi.number().integer().positive().default(604800)
 });

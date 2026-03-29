@@ -1,4 +1,13 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  UseGuards
+} from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiBody,
@@ -8,6 +17,8 @@ import {
 } from '@nestjs/swagger';
 import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { LimitType } from '../common/plan/decorators/limit-type.decorator';
+import { PlanLimitGuard } from '../common/plan/guards/plan-limit.guard';
 import { CategoriesService } from './categories.service';
 import { CategoryResponseDto } from './dto/category-response.dto';
 import { CreateCategoryDto } from './dto/create-category.dto';
@@ -22,6 +33,8 @@ export class CategoriesController {
   @ApiOperation({ summary: 'Criar categoria' })
   @ApiBody({ type: CreateCategoryDto })
   @ApiResponse({ status: 201, type: CategoryResponseDto })
+  @LimitType('categories')
+  @UseGuards(PlanLimitGuard)
   @Post()
   create(
     @CurrentUser() currentUser: JwtPayload,

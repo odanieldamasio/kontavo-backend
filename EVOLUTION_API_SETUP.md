@@ -17,6 +17,9 @@ EVOLUTION_API_KEY=troque-por-uma-chave-forte
 EVOLUTION_INSTANCE_NAME=kontavo
 EVOLUTION_WEBHOOK_URL=http://backend:3000/whatsapp/webhook
 WHATSAPP_WEBHOOK_TOKEN=
+OPENAI_API_KEY=sk-...
+OPENAI_MODEL=gpt-4o
+WHATSAPP_IMAGE_CACHE_TTL_SECONDS=604800
 ```
 
 Observacoes:
@@ -25,6 +28,9 @@ Observacoes:
 - `EVOLUTION_HOST_URL` e usada pelos scripts rodados da sua maquina
 - `EVOLUTION_WEBHOOK_URL` deve continuar apontando para `backend` (a chamada vem de outro container)
 - `WHATSAPP_WEBHOOK_TOKEN` e opcional; se preenchido, a Evolution envia o header `x-webhook-token`
+- `OPENAI_API_KEY` habilita parsing de imagem no WhatsApp
+- `OPENAI_MODEL` deve permanecer `gpt-4o` para esse fluxo
+- `WHATSAPP_IMAGE_CACHE_TTL_SECONDS` define TTL do cache Redis por hash da imagem
 
 ## 2. Subir o stack
 
@@ -39,6 +45,11 @@ Servicos esperados:
 - Postgres app: `localhost:5432`
 - Postgres Evolution: `localhost:5434`
 - Redis: `localhost:6379`
+
+Importante:
+
+- apos subir/reiniciar o stack, execute `pnpm evolution:webhook:sync`
+- em `NODE_ENV=production`, o backend valida `webhook/find` no startup e falha se estiver invalido
 
 ## 3. Criar e conectar instancia
 
@@ -97,6 +108,11 @@ Exemplos:
 - `recebi 1000 cliente`
 - `gasto 1.000,50 aluguel`
 - `recebi 1200.90 projeto`
+
+Imagens:
+
+- ao receber imagem, o backend compacta com `sharp`, usa hash SHA-256 para cache Redis e envia para a OpenAI
+- retorno esperado da IA: `amount`, `type`, `description`, `date` (JSON)
 
 ## 7. Fluxo esperado ponta a ponta
 

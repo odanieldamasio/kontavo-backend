@@ -13,6 +13,7 @@ import {
 } from '@prisma/client';
 import { ConfigService } from '@nestjs/config';
 import { CategoriesService } from '../categories/categories.service';
+import { PlanService } from '../common/plan/plan.service';
 import { PrismaService } from '../database/prisma.service';
 import { CreateTransactionDto } from '../transactions/dto/create-transaction.dto';
 import { TransactionsService } from '../transactions/transactions.service';
@@ -20,6 +21,7 @@ import { UsersService } from '../users/users.service';
 import { WHATSAPP_DEFAULT_CATEGORY_NAME } from './constants/whatsapp.constants';
 import { EvolutionWebhookPayload } from './interfaces/evolution-webhook.interface';
 import { WhatsappParserService } from './parser/whatsapp-parser.service';
+import { WhatsappImageQueueService } from './whatsapp-image-queue.service';
 import { WhatsappQueueService } from './whatsapp-queue.service';
 
 @Injectable()
@@ -34,9 +36,11 @@ export class WhatsappService {
     private readonly configService: ConfigService,
     private readonly usersService: UsersService,
     private readonly prismaService: PrismaService,
+    private readonly planService: PlanService,
     private readonly parserService: WhatsappParserService,
     private readonly transactionsService: TransactionsService,
     private readonly categoriesService: CategoriesService,
+    private readonly whatsappImageQueueService: WhatsappImageQueueService,
     private readonly whatsappQueueService: WhatsappQueueService
   ) {}
 
@@ -54,9 +58,23 @@ export class WhatsappService {
     }
 
     const extracted = this.extractMessage(payload);
+    const hasImage = extracted ? this.hasImageMessage(extracted.message) : false;
 
-    if (!extracted || extracted.fromMe || !extracted.text) {
+    if (!extracted || (!extracted.text && !hasImage)) {
       return;
+    }
+
+    if (extracted.fromMe && !hasImage) {
+      this.logger.debug(
+        `Ignoring WhatsApp text message ${extracted.messageId} because fromMe=true`
+      );
+      return;
+    }
+
+    if (extracted.fromMe && hasImage) {
+      this.logger.debug(
+        `Accepting WhatsApp image message ${extracted.messageId} even with fromMe=true`
+      );
     }
 
     const existingInboundMessage = await this.findInboundMessageByExternalId(
@@ -71,7 +89,7 @@ export class WhatsappService {
     }
 
     const user = await this.usersService.findByNormalizedPhone(extracted.remoteJid);
-    const parsed = this.parserService.parse(extracted.text);
+    const parsed = extracted.text ? this.parserService.parse(extracted.text) : null;
     let transactionId: string | null = null;
 
     await this.persistInboundMessage({
@@ -79,7 +97,7 @@ export class WhatsappService {
       messageId: extracted.messageId,
       remoteJid: extracted.remoteJid,
       text: extracted.text,
-      parsed: Boolean(parsed),
+      parsed: hasImage ? false : Boolean(parsed),
       rawPayload: payload as Prisma.InputJsonValue
     });
 
@@ -87,6 +105,34 @@ export class WhatsappService {
       this.logger.warn(
         `Ignoring WhatsApp message ${extracted.messageId} because no user was found for ${extracted.remoteJid}`
       );
+      return;
+    }
+
+    const hasWhatsappFeature = await this.planService.hasFeature(user.id, 'whatsapp');
+
+    if (!hasWhatsappFeature) {
+      await this.whatsappQueueService.enqueueOutbound({
+        userId: user.id,
+        remoteJid: extracted.remoteJid,
+        text: '⚠️ Recurso de WhatsApp indisponivel no seu plano atual.',
+        rawPayload: {
+          source: 'whatsapp-module',
+          inReplyTo: extracted.messageId,
+          code: 'FEATURE_NOT_AVAILABLE'
+        }
+      });
+      return;
+    }
+
+    if (this.hasImageMessage(extracted.message)) {
+      await this.whatsappImageQueueService.enqueue({
+        userId: user.id,
+        remoteJid: extracted.remoteJid,
+        messageId: extracted.messageId,
+        key: extracted.key,
+        message: extracted.message,
+        rawPayload: payload as Prisma.InputJsonValue
+      });
       return;
     }
 
@@ -190,6 +236,8 @@ export class WhatsappService {
     remoteJid: string;
     text: string;
     fromMe: boolean;
+    key: EvolutionWebhookPayload['key'];
+    message: EvolutionWebhookPayload['message'];
   } | null {
     const nestedMessage = Array.isArray(payload.data?.messages)
       ? payload.data.messages[0]
@@ -197,10 +245,13 @@ export class WhatsappService {
     const key = nestedMessage?.key ?? payload.data?.key ?? payload.key;
     const message = nestedMessage?.message ?? payload.data?.message ?? payload.message;
     const messageId = key?.id;
-    const remoteJid =
-      key?.remoteJid ??
+    const remoteJidFromKey = key?.remoteJidAlt ?? key?.remoteJid;
+    const remoteJidFromSender =
       this.extractSenderValue(payload.data?.sender) ??
       this.extractSenderValue(payload.sender);
+    const remoteJid =
+      remoteJidFromKey ??
+      remoteJidFromSender;
     const text = this.extractText(message).trim();
     const fromMe = Boolean(key?.fromMe);
 
@@ -208,11 +259,19 @@ export class WhatsappService {
       return null;
     }
 
+    if (key?.remoteJidAlt && remoteJid === key.remoteJidAlt) {
+      this.logger.debug(
+        `Using remoteJidAlt (${key.remoteJidAlt}) for WhatsApp message ${messageId}`
+      );
+    }
+
     return {
       messageId,
       remoteJid,
       text,
-      fromMe
+      fromMe,
+      key,
+      message
     };
   }
 
@@ -237,6 +296,7 @@ export class WhatsappService {
       | {
           id?: string;
           remoteJid?: string;
+          remoteJidAlt?: string;
         }
       | undefined
   ): string | undefined {
@@ -248,7 +308,11 @@ export class WhatsappService {
       return sender;
     }
 
-    return sender.remoteJid ?? sender.id;
+    return sender.remoteJidAlt ?? sender.remoteJid ?? sender.id;
+  }
+
+  private hasImageMessage(message: EvolutionWebhookPayload['message'] | undefined): boolean {
+    return Boolean(message?.imageMessage);
   }
 
   private async getOrCreateWhatsappCategoryId(userId: string): Promise<string> {

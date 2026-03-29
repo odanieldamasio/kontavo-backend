@@ -6,7 +6,8 @@ import {
   Param,
   Patch,
   Post,
-  Query
+  Query,
+  UseGuards
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -17,6 +18,8 @@ import {
 } from '@nestjs/swagger';
 import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { LimitType } from '../common/plan/decorators/limit-type.decorator';
+import { PlanLimitGuard } from '../common/plan/guards/plan-limit.guard';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { ListTransactionsQueryDto } from './dto/list-transactions-query.dto';
 import { PaginatedTransactionsResponseDto } from './dto/paginated-transactions-response.dto';
@@ -33,6 +36,8 @@ export class TransactionsController {
   @ApiOperation({ summary: 'Criar transacao' })
   @ApiBody({ type: CreateTransactionDto })
   @ApiResponse({ status: 201, type: TransactionResponseDto })
+  @LimitType('transactions')
+  @UseGuards(PlanLimitGuard)
   @Post()
   create(
     @CurrentUser() currentUser: JwtPayload,
