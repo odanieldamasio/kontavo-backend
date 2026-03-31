@@ -1,12 +1,14 @@
 {
-  "name": "kontavo-backend",
+  "name": "jadeon-backend",
   "version": "0.1.0",
   "private": true,
   "packageManager": "pnpm@10.0.0",
-  "description": "Initial backend scaffold for Kontavo using NestJS, Prisma, PostgreSQL and Redis.",
+  "description": "Initial backend scaffold for Jadeon using NestJS, Prisma, PostgreSQL and Redis.",
   "license": "UNLICENSED",
   "scripts": {
     "build": "nest build",
+    "typecheck": "tsc -p tsconfig.build.json --noEmit",
+    "lint": "tsc -p tsconfig.build.json --noEmit",
     "start": "node dist/main",
     "start:dev": "nest start --watch",
     "start:prod": "node dist/main",

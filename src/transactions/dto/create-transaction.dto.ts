@@ -20,6 +20,6 @@ export class CreateTransactionDto {
   @ApiPropertyOptional({ enum: TransactionSource, default: TransactionSource.MANUAL })
   source?: TransactionSource;
 
-  @ApiPropertyOptional({ example: 'https://cdn.kontavo.com/receipts/123.png', nullable: true })
+  @ApiPropertyOptional({ example: 'https://cdn.jadeon.com/receipts/123.png', nullable: true })
   receiptUrl?: string;
 }

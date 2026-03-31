@@ -20,6 +20,6 @@ export class UpdateTransactionDto {
   @ApiPropertyOptional({ enum: TransactionSource })
   source?: TransactionSource;
 
-  @ApiPropertyOptional({ example: 'https://cdn.kontavo.com/receipts/updated.png', nullable: true })
+  @ApiPropertyOptional({ example: 'https://cdn.jadeon.com/receipts/updated.png', nullable: true })
   receiptUrl?: string | null;
 }

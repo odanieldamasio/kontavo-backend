@@ -2,7 +2,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { PlanType } from '@prisma/client';
 
 export class RegisterDto {
-  @ApiProperty({ example: 'daniel@kontavo.com' })
+  @ApiProperty({ example: 'daniel@jadeon.com' })
   email!: string;
 
   @ApiProperty({ example: 'Daniel Damasio' })

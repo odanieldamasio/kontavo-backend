@@ -54,9 +54,11 @@ export class BillingController {
   @Post('webhook')
   async handleWebhook(
     @Headers('stripe-signature') signature: string | string[] | undefined,
-    @Req() request: { rawBody?: Buffer }
+    @Req() request: { rawBody?: Buffer; body?: Buffer | unknown }
   ): Promise<{ received: true }> {
-    const rawBody = request.rawBody;
+    const rawBody =
+      request.rawBody ??
+      (Buffer.isBuffer(request.body) ? request.body : undefined);
 
     if (!rawBody) {
       throw new BadRequestException('Missing raw body for Stripe webhook');
