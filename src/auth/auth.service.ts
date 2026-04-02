@@ -47,7 +47,7 @@ export class AuthService {
       name: registerDto.name,
       password: hashedPassword,
       phone: registerDto.phone,
-      planType: registerDto.planType ?? PlanType.FREE
+      planType: PlanType.FREE
     });
 
     return this.issueTokens(user);

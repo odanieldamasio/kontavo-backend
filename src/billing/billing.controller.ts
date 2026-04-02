@@ -21,6 +21,8 @@ import { Public } from '../common/decorators/public.decorator';
 import { BillingService } from './billing.service';
 import { BillingUrlResponseDto } from './dto/billing-url-response.dto';
 import { CreateCheckoutSessionDto } from './dto/create-checkout-session.dto';
+import { ValidateCheckoutFlowDto } from './dto/validate-checkout-flow.dto';
+import { ValidateCheckoutFlowResponseDto } from './dto/validate-checkout-flow-response.dto';
 
 @ApiTags('Billing')
 @ApiBearerAuth()
@@ -46,6 +48,17 @@ export class BillingController {
     @CurrentUser() currentUser: JwtPayload
   ): Promise<BillingUrlResponseDto> {
     return this.billingService.createPortalSession(currentUser.sub);
+  }
+
+  @ApiOperation({ summary: 'Validar fluxo de checkout do Stripe' })
+  @ApiBody({ type: ValidateCheckoutFlowDto })
+  @ApiResponse({ status: 201, type: ValidateCheckoutFlowResponseDto })
+  @Post('checkout/validate-flow')
+  validateCheckoutFlow(
+    @CurrentUser() currentUser: JwtPayload,
+    @Body() dto: ValidateCheckoutFlowDto
+  ): Promise<ValidateCheckoutFlowResponseDto> {
+    return this.billingService.validateCheckoutFlow(currentUser.sub, dto);
   }
 
   @Public()

@@ -1,22 +1,35 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException
 } from '@nestjs/common';
 import { PlanType, Prisma, Subscription, User } from '@prisma/client';
+import { randomUUID } from 'crypto';
 import Stripe from 'stripe';
 import { PrismaService } from '../database/prisma.service';
+import { RedisService } from '../redis/redis.service';
 import { UsersService } from '../users/users.service';
 import { BillingUrlResponseDto } from './dto/billing-url-response.dto';
 import { CreateCheckoutSessionDto } from './dto/create-checkout-session.dto';
+import { ValidateCheckoutFlowDto } from './dto/validate-checkout-flow.dto';
+import { ValidateCheckoutFlowResponseDto } from './dto/validate-checkout-flow-response.dto';
 import { StripeService } from './stripe.service';
+
+interface CheckoutFlowPayload {
+  userId: string;
+  planType: PlanType;
+}
 
 @Injectable()
 export class BillingService {
+  private readonly checkoutFlowTtlInSeconds = 2 * 60 * 60;
+
   constructor(
     private readonly prismaService: PrismaService,
     private readonly usersService: UsersService,
-    private readonly stripeService: StripeService
+    private readonly stripeService: StripeService,
+    private readonly redisService: RedisService
   ) {}
 
   async createCheckoutSession(
@@ -30,13 +43,26 @@ export class BillingService {
     const user = await this.getUserOrThrow(userId);
     const customerId = await this.getOrCreateCustomerId(user);
     const priceId = this.stripeService.getPriceIdForPlan(dto.planType);
+    const checkoutFlowToken = randomUUID();
+    const successUrl = this.appendUrlParams(this.stripeService.getSuccessUrl(), {
+      flowToken: checkoutFlowToken,
+      session_id: '{CHECKOUT_SESSION_ID}'
+    });
+    const cancelUrl = this.appendUrlParams(this.stripeService.getCancelUrl(), {
+      flowToken: checkoutFlowToken
+    });
+
+    await this.storeCheckoutFlowToken(checkoutFlowToken, {
+      userId: user.id,
+      planType: dto.planType
+    });
 
     const session = await this.stripeService.client.checkout.sessions.create({
       mode: 'subscription',
       customer: customerId,
       client_reference_id: user.id,
-      success_url: this.stripeService.getSuccessUrl(),
-      cancel_url: this.stripeService.getCancelUrl(),
+      success_url: successUrl,
+      cancel_url: cancelUrl,
       line_items: [
         {
           price: priceId,
@@ -45,12 +71,14 @@ export class BillingService {
       ],
       metadata: {
         userId: user.id,
-        planType: dto.planType
+        planType: dto.planType,
+        checkoutFlowToken
       },
       subscription_data: {
         metadata: {
           userId: user.id,
-          planType: dto.planType
+          planType: dto.planType,
+          checkoutFlowToken
         }
       }
     });
@@ -60,6 +88,46 @@ export class BillingService {
     }
 
     return { url: session.url };
+  }
+
+  async validateCheckoutFlow(
+    userId: string,
+    dto: ValidateCheckoutFlowDto
+  ): Promise<ValidateCheckoutFlowResponseDto> {
+    if (!dto.flowToken) {
+      throw new BadRequestException('Missing checkout flow token');
+    }
+
+    const flowPayload = await this.readCheckoutFlowToken(dto.flowToken);
+
+    if (!flowPayload || flowPayload.userId !== userId) {
+      throw new ForbiddenException('Invalid checkout flow');
+    }
+
+    if (dto.outcome === 'cancel') {
+      return { valid: true };
+    }
+
+    if (!dto.sessionId) {
+      throw new BadRequestException('Missing Stripe session id');
+    }
+
+    const session = await this.stripeService.client.checkout.sessions.retrieve(
+      dto.sessionId
+    );
+    const metadataUserId = session.metadata?.userId;
+    const metadataFlowToken = session.metadata?.checkoutFlowToken;
+    const sessionUserId = session.client_reference_id ?? metadataUserId;
+    const isPaid =
+      session.status === 'complete' &&
+      (session.payment_status === 'paid' ||
+        session.payment_status === 'no_payment_required');
+
+    if (!isPaid || sessionUserId !== userId || metadataFlowToken !== dto.flowToken) {
+      throw new ForbiddenException('Invalid checkout session');
+    }
+
+    return { valid: true };
   }
 
   async createPortalSession(userId: string): Promise<BillingUrlResponseDto> {
@@ -118,6 +186,10 @@ export class BillingService {
 
     if (!userId || !subscriptionId) {
       return;
+    }
+
+    if (session.metadata?.checkoutFlowToken) {
+      await this.deleteCheckoutFlowToken(session.metadata.checkoutFlowToken);
     }
 
     const subscription = await this.stripeService.client.subscriptions.retrieve(
@@ -330,5 +402,59 @@ export class BillingService {
     }
 
     return new Date(unixTimestamp * 1000);
+  }
+
+  private getCheckoutFlowKey(token: string): string {
+    return `billing:checkout-flow:${token}`;
+  }
+
+  private async storeCheckoutFlowToken(
+    token: string,
+    payload: CheckoutFlowPayload
+  ): Promise<void> {
+    await this.redisService.set(
+      this.getCheckoutFlowKey(token),
+      JSON.stringify(payload),
+      this.checkoutFlowTtlInSeconds
+    );
+  }
+
+  private async readCheckoutFlowToken(
+    token: string
+  ): Promise<CheckoutFlowPayload | null> {
+    const rawValue = await this.redisService.get(this.getCheckoutFlowKey(token));
+
+    if (!rawValue) {
+      return null;
+    }
+
+    try {
+      const parsed = JSON.parse(rawValue) as CheckoutFlowPayload;
+
+      if (!parsed.userId || !parsed.planType) {
+        return null;
+      }
+
+      return parsed;
+    } catch {
+      return null;
+    }
+  }
+
+  private async deleteCheckoutFlowToken(token: string): Promise<void> {
+    await this.redisService.del(this.getCheckoutFlowKey(token));
+  }
+
+  private appendUrlParams(
+    baseUrl: string,
+    params: Record<string, string>
+  ): string {
+    const url = new URL(baseUrl);
+
+    for (const [key, value] of Object.entries(params)) {
+      url.searchParams.set(key, value);
+    }
+
+    return url.toString();
   }
 }
