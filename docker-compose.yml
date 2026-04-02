@@ -65,8 +65,7 @@ services:
       - .env
     environment:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/jadeon
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
+      REDIS_URL: redis://redis:6379
       EVOLUTION_API_URL: http://evolution:8080
     ports:
       - "3000:3000"

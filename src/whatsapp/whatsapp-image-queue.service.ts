@@ -56,10 +56,15 @@ export class WhatsappImageQueueService implements OnModuleDestroy {
     private readonly redisService: RedisService,
     private readonly whatsappQueueService: WhatsappQueueService
   ) {
+    const redisUrl = configService.getOrThrow<string>('REDIS_URL');
+    const redisUri = new URL(redisUrl);
+    const dbFromPath = Number(redisUri.pathname.replace('/', ''));
     const connection = {
-      host: configService.get<string>('REDIS_HOST', 'localhost'),
-      port: configService.get<number>('REDIS_PORT', 6379),
-      password: configService.get<string>('REDIS_PASSWORD') || undefined
+      host: redisUri.hostname,
+      port: Number(redisUri.port || 6379),
+      password: redisUri.password ? decodeURIComponent(redisUri.password) : undefined,
+      db: Number.isFinite(dbFromPath) ? dbFromPath : 0,
+      tls: redisUri.protocol === 'rediss:' ? {} : undefined
     };
 
     this.cacheTtlSeconds = configService.get<number>(
